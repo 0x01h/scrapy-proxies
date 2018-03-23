@@ -23,7 +23,7 @@ import random
 import base64
 import logging
 
-proxy_regex = r'(\w+://)([^:]+?:[^@]+?@)?(.+)'
+proxy_regex = r'(\w+://)([^:]+?:.+@)?(.+)'
 log = logging.getLogger('scrapy.proxies')
 
 class Mode:
