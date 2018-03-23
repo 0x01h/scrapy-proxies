@@ -23,8 +23,8 @@ import random
 import base64
 import logging
 
+proxy_regex = r'(\w+://)([^:]+?:[^@]+?@)?(.+)'
 log = logging.getLogger('scrapy.proxies')
-
 
 class Mode:
     RANDOMIZE_PROXY_EVERY_REQUESTS, RANDOMIZE_PROXY_ONCE, SET_CUSTOM_PROXY = range(3)
@@ -43,7 +43,7 @@ class RandomProxy(object):
             fin = open(self.proxy_list)
             try:
                 for line in fin.readlines():
-                    parts = re.match('(\w+://)([^:]+?:[^@]+?@)?(.+)', line.strip())
+                    parts = re.match(proxy_regex, line.strip())
                     if not parts:
                         continue
 
@@ -61,7 +61,7 @@ class RandomProxy(object):
         elif self.mode == Mode.SET_CUSTOM_PROXY:
             custom_proxy = settings.get('CUSTOM_PROXY')
             self.proxies = {}
-            parts = re.match('(\w+://)([^:]+?:[^@]+?@)?(.+)', custom_proxy.strip())
+            parts = re.match(proxy_regex, custom_proxy.strip())
             if not parts:
                 raise ValueError('CUSTOM_PROXY is not well formatted')
 
@@ -79,8 +79,8 @@ class RandomProxy(object):
 
     def process_request(self, request, spider):
         # Don't overwrite with a random one (server-side state for IP)
-        if 'proxy' in request.meta:
-            if request.meta["exception"] is False:
+        if 'proxy' in request.meta or ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
+            if request.meta.get("exception", False) is False:
                 return
         request.meta["exception"] = False
         if len(self.proxies) == 0:
@@ -93,20 +93,20 @@ class RandomProxy(object):
 
         proxy_user_pass = self.proxies[proxy_address]
 
-        if proxy_user_pass:
-            request.meta['proxy'] = proxy_address
-            basic_auth = 'Basic ' + base64.b64encode(proxy_user_pass.encode()).decode()
-            request.headers['Proxy-Authorization'] = basic_auth
-        else:
-            log.debug('Proxy user pass not found')
+        self.add_scrapy_proxy(request, proxy_address, proxy_user_pass)
+
         log.debug('Using proxy <%s>, %d proxies left' % (
                 proxy_address, len(self.proxies)))
 
     def process_exception(self, request, exception, spider):
-        if 'proxy' not in request.meta:
+        if 'proxy' not in request.meta and not('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
             return
         if self.mode == Mode.RANDOMIZE_PROXY_EVERY_REQUESTS or self.mode == Mode.RANDOMIZE_PROXY_ONCE:
-            proxy = request.meta['proxy']
+            if ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
+                parts = re.match(proxy_regex, request.meta['splash']['args']['proxy'].strip())
+                proxy = parts.group(1) + parts.group(3)
+            else:
+                proxy = request.meta['proxy']
             try:
                 del self.proxies[proxy]
             except KeyError:
@@ -116,3 +116,16 @@ class RandomProxy(object):
                 self.chosen_proxy = random.choice(list(self.proxies.keys()))
             log.info('Removing failed proxy <%s>, %d proxies left' % (
                 proxy, len(self.proxies)))
+            
+    def add_scrapy_proxy(self, request, address, user_pass = None):
+        
+        if('splash' in request.meta):
+            # In case there is splash, just forward the proxy to it 
+            parts = re.match('(\w+://)([\w\W]+)', address.strip())
+            request.meta['splash']['args']['proxy'] = parts.group(1) + ((user_pass + '@') if len(user_pass) > 0 else '') + parts.group(2)
+        else:
+            request.meta['proxy'] = address
+            if user_pass:
+                basic_auth = 'Basic ' + base64.b64encode(user_pass.encode()).decode()
+                request.headers['Proxy-Authorization'] = basic_auth
+        
