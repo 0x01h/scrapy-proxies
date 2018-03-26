@@ -78,6 +78,9 @@ class RandomProxy(object):
         return cls(crawler.settings)
 
     def process_request(self, request, spider):
+        if self.mode < 0:
+            log.warning("Skipping Random Proxy selection(disabled)!")
+            return;
         # Don't overwrite with a random one (server-side state for IP)
         if 'proxy' in request.meta or ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
             if request.meta.get("exception", False) is False:
@@ -99,7 +102,7 @@ class RandomProxy(object):
                 proxy_address, len(self.proxies)))
 
     def process_exception(self, request, exception, spider):
-        if 'proxy' not in request.meta and not('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
+        if self.mode < 0 or ('proxy' not in request.meta and not('splash' in request.meta and 'proxy' in request.meta['splash']['args'])):
             return
         if self.mode == Mode.RANDOMIZE_PROXY_EVERY_REQUESTS or self.mode == Mode.RANDOMIZE_PROXY_ONCE:
             if ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
