@@ -82,7 +82,7 @@ class RandomProxy(object):
             log.warning("Skipping Random Proxy selection(disabled)!")
             return;
         # Don't overwrite with a random one (server-side state for IP)
-        if 'proxy' in request.meta or ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
+        if 'proxy' in request.meta:
             if request.meta.get("exception", False) is False:
                 return
         request.meta["exception"] = False
@@ -102,14 +102,10 @@ class RandomProxy(object):
                 proxy_address, len(self.proxies)))
 
     def process_exception(self, request, exception, spider):
-        if self.mode < 0 or ('proxy' not in request.meta and not('splash' in request.meta and 'proxy' in request.meta['splash']['args'])):
+        if self.mode < 0 or ('proxy' not in request.meta):
             return
         if self.mode == Mode.RANDOMIZE_PROXY_EVERY_REQUESTS or self.mode == Mode.RANDOMIZE_PROXY_ONCE:
-            if ('splash' in request.meta and 'proxy' in request.meta['splash']['args']):
-                parts = re.match(proxy_regex, request.meta['splash']['args']['proxy'].strip())
-                proxy = parts.group(1) + parts.group(3)
-            else:
-                proxy = request.meta['proxy']
+            proxy = request.meta['proxy']
             try:
                 del self.proxies[proxy]
             except KeyError:
@@ -121,13 +117,8 @@ class RandomProxy(object):
                 proxy, len(self.proxies)))
             
     def add_scrapy_proxy(self, request, address, user_pass = None):
-        
-        if('splash' in request.meta):
-            # In case there is splash, just forward the proxy to it.
-            request.meta['splash']['args']['proxy'] = address
-        else:
-            request.meta['proxy'] = address
-            if user_pass:
-                basic_auth = 'Basic ' + base64.b64encode(user_pass.encode()).decode()
-                request.headers['Proxy-Authorization'] = basic_auth
+        request.meta['proxy'] = address
+        if user_pass:
+            basic_auth = 'Basic ' + base64.b64encode(user_pass.encode()).decode()
+            request.headers['Proxy-Authorization'] = basic_auth
         
