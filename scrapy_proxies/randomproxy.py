@@ -123,9 +123,10 @@ class RandomProxy(object):
     def add_scrapy_proxy(self, request, address, user_pass = None):
         
         if('splash' in request.meta):
-            # In case there is splash, just forward the proxy to it 
-            parts = re.match('(\w+://)([\w\W]+)', address.strip())
-            request.meta['splash']['args']['proxy'] = parts.group(1) + ((user_pass + '@') if len(user_pass) > 0 else '') + parts.group(2)
+            # In case there is splash, just forward the proxy to it.
+            request.meta['splash']['args']['proxy'] = address
+        elif(request.meta['splash']):
+            request.meta['splash']['args']['proxy'] = address
         else:
             request.meta['proxy'] = address
             if user_pass:
