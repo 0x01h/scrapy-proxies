@@ -125,8 +125,6 @@ class RandomProxy(object):
         if('splash' in request.meta):
             # In case there is splash, just forward the proxy to it.
             request.meta['splash']['args']['proxy'] = address
-        elif(request.meta['splash']):
-            request.meta['splash']['args']['proxy'] = address
         else:
             request.meta['proxy'] = address
             if user_pass:
