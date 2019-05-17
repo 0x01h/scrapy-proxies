@@ -125,7 +125,7 @@ class RandomProxy(object):
         if('splash' in request.meta):
             # In case there is splash, just forward the proxy to it 
             parts = re.match('(\w+://)([\w\W]+)', address.strip())
-            request.meta['splash']['args']['proxy'] = parts.group(1).replace('https', 'http') + ((user_pass + '@') if len(user_pass) > 0 else '') + parts.group(2)
+            request.meta['splash']['args']['proxy'] = parts.group(1).replace('https', 'http').replace('socks5', 'socks4') + ((user_pass + '@') if len(user_pass) > 0 else '') + parts.group(2)
         else:
             request.meta['proxy'] = address
             if user_pass:
